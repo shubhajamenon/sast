@@ -1,7 +1,7 @@
 # Employee Tracker — SAST Training Application
 
-A Spring Boot REST API built for the **T-04 SAST Vulnerability Remediation** workshop.  
-The application works correctly from a business perspective, but contains **eight deliberate SAST vulnerabilities** for you to find and fix.
+A Spring Boot REST API built for the **T-04 SAST Vulnerability Remediation** workshop.
+The application originally contained eight deliberate SAST vulnerabilities. Remediations for V1–V5 are included; V6–V8 remain workshop findings.
 
 ---
 
@@ -15,20 +15,20 @@ The Employee Tracker exposes three functional areas:
 | Authentication | Register users and log in |
 | Reports | Download files from a reports directory |
 
-Each area contains at least one security vulnerability flagged by a SAST scanner. Your job is to fix every finding without breaking the existing tests.
+The application demonstrates remediation of security findings flagged by a SAST scanner.
 
-### SAST findings
+### SAST findings and remediations
 
-| ID | Vulnerability | File | CWE |
-|----|--------------|------|-----|
-| V1 | SQL Injection | `EmployeeService.java` | CWE-89 |
-| V2 | Weak Cryptography (MD5) | `AuthService.java` | CWE-327 |
-| V3 | Hardcoded Secret | `AuthService.java` | CWE-798 |
-| V4 | Sensitive Data in Logs | `AuthController.java` | CWE-532 |
-| V5 | Path Traversal | `ReportController.java` | CWE-22 |
-| V6 | Verbose Error Disclosure | `GlobalExceptionHandler.java` | CWE-209 |
-| V7 | Insecure Direct Object Reference | `EmployeeController.java` | CWE-639 |
-| V8 | Reflected XSS | `StatusController.java` | CWE-79 |
+| ID | Finding | Remediation |
+|----|---------|-------------|
+| V1 | SQL Injection (CWE-89) | Employee name search binds the `LIKE` value as a query parameter. |
+| V2 | Weak Cryptography (CWE-327) | Passwords are encoded with BCrypt through Spring Security's `PasswordEncoder`. |
+| V3 | Hardcoded Secret (CWE-798) | The fixed token secret was removed; login does not return a fabricated shared token. |
+| V4 | Sensitive Data in Logs (CWE-532) | Login logs contain no credentials or user-supplied values. |
+| V5 | Path Traversal (CWE-22) | Downloads are resolved and checked against the configured reports directory, including symlinks. |
+| V6 | Verbose Error Disclosure (CWE-209) | Present in `GlobalExceptionHandler.java`; not yet remediated. |
+| V7 | Insecure Direct Object Reference (CWE-639) | Present in `EmployeeController.java`; not yet remediated. |
+| V8 | Reflected XSS (CWE-79) | Present in `StatusController.java`; not yet remediated. |
 
 ---
 
@@ -96,13 +96,6 @@ Run the full test suite:
 .\gradlew.bat test
 ```
 
-Expected output:
-
-```
-BUILD SUCCESSFUL
-12 tests completed, 0 failures
-```
-
 > **Do not modify any test file.** The tests describe the correct behaviour of the application. When you fix a vulnerability, the tests must still pass.
 
 ---
@@ -147,7 +140,11 @@ curl -X POST http://localhost:8080/api/auth/login \
      -d "{\"username\":\"frank\",\"password\":\"pass123\"}"
 ```
 
-> Watch the console after login — you will see the password printed in the log. That is **Vulnerability V4**.
+> Login attempts are logged without user-supplied values or credentials.
+
+### Report downloads
+
+Reports are read from the `reports` directory by default. Set `REPORTS_DIRECTORY` to use another directory. Requested files must remain within that directory.
 
 ### Get employee profile (sensitive fields — V7)
 

@@ -2,40 +2,51 @@ package com.accenture.sast.tracker.controller;
 
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 
 @RestController
 @RequestMapping("/api/reports")
 public class ReportController {
 
-    private static final String REPORT_DIR = "C:/reports/";
+    private final Path reportDirectory;
 
-    // ── VULNERABILITY V5: Path Traversal (CWE-22) ────────────────────────────
-    // The filename parameter is used directly when building the File path.
-    // An attacker can supply: ../../Windows/System32/drivers/etc/hosts
-    // to read any file the process has access to, regardless of REPORT_DIR.
-    // Fix: resolve the path, then verify it starts with REPORT_DIR:
-    //   Path resolved = Paths.get(REPORT_DIR).resolve(filename).normalize();
-    //   if (!resolved.startsWith(Paths.get(REPORT_DIR))) throw new ...;
-    // ─────────────────────────────────────────────────────────────────────────
+    public ReportController(@Value("${app.reports.directory:reports}") String reportDirectory) {
+        this.reportDirectory = Path.of(reportDirectory).toAbsolutePath().normalize();
+    }
+
     @GetMapping("/download")
     public ResponseEntity<Resource> download(@RequestParam String filename) throws IOException {
-        File file = new File(REPORT_DIR + filename);
+        Path requestedPath = reportDirectory.resolve(filename).normalize();
+        if (!requestedPath.startsWith(reportDirectory)) {
+            return ResponseEntity.badRequest().build();
+        }
 
-        if (!file.exists()) {
+        if (!Files.isDirectory(reportDirectory) || !Files.exists(requestedPath)) {
             return ResponseEntity.notFound().build();
         }
 
-        byte[] content = Files.readAllBytes(file.toPath());
+        Path realReportDirectory = reportDirectory.toRealPath();
+        Path realFile = requestedPath.toRealPath();
+        if (!realFile.startsWith(realReportDirectory) || !Files.isRegularFile(realFile)) {
+            return ResponseEntity.notFound().build();
+        }
+
+        byte[] content = Files.readAllBytes(realFile);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment()
+                                .filename(realFile.getFileName().toString())
+                                .build()
+                                .toString())
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(new ByteArrayResource(content));
     }

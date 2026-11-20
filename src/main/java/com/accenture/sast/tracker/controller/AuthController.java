@@ -28,22 +28,15 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("message", "User registered"));
     }
 
-    // ── VULNERABILITY V4: Sensitive Data in Logs (CWE-532) ───────────────────
-    // The plaintext password is written to the application log.
-    // Log files are often forwarded to centralised systems (Splunk, ELK) where
-    // they can be read by many people and stored indefinitely.
-    // Fix: log only the username; never log credentials or tokens.
-    // ─────────────────────────────────────────────────────────────────────────
     @PostMapping("/login")
     public ResponseEntity<Map<String, String>> login(@RequestBody Map<String, String> body) {
         String username = body.get("username");
         String password = body.get("password");
 
-        log.info("Login attempt: username={}, password={}", username, password);
+        log.info("Login attempt");
 
         if (authService.authenticate(username, password)) {
-            return ResponseEntity.ok(Map.of("message", "Login successful",
-                                             "token", authService.getApiSecret()));
+            return ResponseEntity.ok(Map.of("message", "Login successful"));
         }
         return ResponseEntity.status(401).body(Map.of("message", "Invalid credentials"));
     }
